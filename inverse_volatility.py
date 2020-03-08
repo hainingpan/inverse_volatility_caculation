@@ -8,6 +8,7 @@ import numpy as np
 import time
 import sys
 import requests
+import re
 
 if len(sys.argv) == 1:
     symbols = ['UPRO', 'TMF']
@@ -17,15 +18,17 @@ else:
         symbols[i] = symbols[i].strip().upper()
 
 num_trading_days_per_year = 252
-window_size = 20
+window_size = 10
 date_format = "%Y-%m-%d"
 end_timestamp = int(time.time())
 start_timestamp = int(end_timestamp - (1.4 * (window_size + 1) + 4) * 86400)
 
 
-def get_volatility_and_performance(symbol):
-    download_url = "https://query1.finance.yahoo.com/v7/finance/download/{}?period1={}&period2={}&interval=1d&events=history&crumb=a7pcO//zvcW".format(symbol, start_timestamp, end_timestamp)
-    lines = requests.get(download_url, cookies={'B': 'chjes25epq9b6&b=3&s=18'}).text.strip().split('\n')
+def get_volatility_and_performance(symbol,cookie,crumb):
+    download_url = "https://query1.finance.yahoo.com/v7/finance/download/{}?period1={}&period2={}&interval=1d&events=history&crumb={}".format(symbol, start_timestamp, end_timestamp,crumb)
+    lines = requests.get(download_url, cookies={'B': cookie}).text.strip().split('\n')
+    print(download_url)
+    print(lines)
     assert lines[0].split(',')[0] == 'Date'
     assert lines[0].split(',')[4] == 'Close'
     prices = []
@@ -42,11 +45,26 @@ def get_volatility_and_performance(symbol):
 
     return np.std(volatilities_in_window, ddof = 1) * np.sqrt(num_trading_days_per_year), prices[0] / prices[window_size] - 1.0
 
+
+def get_cookie():
+    url = 'https://finance.yahoo.com/quote/VOO/history?p=VOO'
+    r = requests.get(url)
+    txt = r.text 
+    cookie = r.cookies['B']
+    pattern = re.compile('.*"CrumbStore":\{"crumb":"(?P<crumb>[^"]+)"\}')
+    for line in txt.splitlines():
+        m = pattern.match(line)
+        if m is not None:
+            crumb = m.groupdict()['crumb']
+        
+    return cookie,crumb
+    
+cookie,crumb=get_cookie()
 volatilities = []
 performances = []
 sum_inverse_volatility = 0.0
 for symbol in symbols:
-    volatility, performance = get_volatility_and_performance(symbol)
+    volatility, performance = get_volatility_and_performance(symbol,cookie,crumb)
     sum_inverse_volatility += 1 / volatility
     volatilities.append(volatility)
     performances.append(performance)
