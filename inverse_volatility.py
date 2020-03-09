@@ -18,7 +18,7 @@ else:
         symbols[i] = symbols[i].strip().upper()
 
 num_trading_days_per_year = 252
-window_size = 10
+window_size = 20
 date_format = "%Y-%m-%d"
 end_timestamp = int(time.time())
 start_timestamp = int(end_timestamp - (1.4 * (window_size + 1) + 4) * 86400)
@@ -27,8 +27,9 @@ start_timestamp = int(end_timestamp - (1.4 * (window_size + 1) + 4) * 86400)
 def get_volatility_and_performance(symbol,cookie,crumb):
     download_url = "https://query1.finance.yahoo.com/v7/finance/download/{}?period1={}&period2={}&interval=1d&events=history&crumb={}".format(symbol, start_timestamp, end_timestamp,crumb)
     lines = requests.get(download_url, cookies={'B': cookie}).text.strip().split('\n')
-    print(download_url)
-    print(lines)
+#   print(cookie)
+#   print(crumb)
+#   print(lines)
     assert lines[0].split(',')[0] == 'Date'
     assert lines[0].split(',')[4] == 'Close'
     prices = []
@@ -55,11 +56,12 @@ def get_cookie():
     for line in txt.splitlines():
         m = pattern.match(line)
         if m is not None:
-            crumb = m.groupdict()['crumb']
-        
+            crumb = m.groupdict()['crumb']        
     return cookie,crumb
     
-cookie,crumb=get_cookie()
+#cookie,crumb=get_cookie()
+cookie='9mev4idf68vgk&b=3&s=g9'
+crumb='Xpr8Z7BQn4W'
 volatilities = []
 performances = []
 sum_inverse_volatility = 0.0
