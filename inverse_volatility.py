@@ -18,7 +18,7 @@ else:
         symbols[i] = symbols[i].strip().upper()
 
 num_trading_days_per_year = 252
-window_size = 20
+window_size = 10
 date_format = "%Y-%m-%d"
 end_timestamp = int(time.time())
 start_timestamp = int(end_timestamp - (1.4 * (window_size + 1) + 4) * 86400)
@@ -44,7 +44,7 @@ def get_volatility_and_performance(symbol,cookie,crumb):
     most_recent_date = datetime.strptime(lines[-1].split(',')[0], date_format).date()
     assert (date.today() - most_recent_date).days <= 4, "today is {}, most recent trading day is {}".format(date.today(), most_recent_date)
 
-    return np.std(volatilities_in_window, ddof = 1) * np.sqrt(num_trading_days_per_year), prices[0] / prices[window_size] - 1.0
+    return np.std(volatilities_in_window, ddof = 1) * np.sqrt(num_trading_days_per_year), prices[0] / prices[window_size] - 1.0, prices[0]
 
 
 def get_cookie():
@@ -64,14 +64,29 @@ cookie='9mev4idf68vgk&b=3&s=g9'
 crumb='Xpr8Z7BQn4W'
 volatilities = []
 performances = []
+current_prices = []
+w=[0,0];
 sum_inverse_volatility = 0.0
 for symbol in symbols:
-    volatility, performance = get_volatility_and_performance(symbol,cookie,crumb)
+    volatility, performance, current_price = get_volatility_and_performance(symbol,cookie,crumb)
     sum_inverse_volatility += 1 / volatility
     volatilities.append(volatility)
     performances.append(performance)
+    current_prices.append(current_price)
 
 print ("Portfolio: {}, as of {} (window size is {} days)".format(str(symbols), date.today().strftime('%Y-%m-%d'), window_size))
 for i in range(len(symbols)):
     print ('{} allocation ratio: {:.2f}% (anualized volatility: {:.2f}%, performance: {:.2f}%)'.format(symbols[i], float(100 / (volatilities[i] * sum_inverse_volatility)), float(volatilities[i] * 100), float(performances[i] * 100)))
+
+	
+w[0]=float(input("Current allocation of "+symbols[0]+"(%): "))
+w[1]=100-w[0]
+asset=float(input("Current total asset:"))
+
+
+for i in range(len(symbols)):
+    #print(asset*((volatilities[i] * sum_inverse_volatility)-w[i]/100))
+    print("Buy {} {} shares (current price:)".format(symbols[i],str(asset*(1/(volatilities[i] * sum_inverse_volatility)-w[i]/100)/current_prices[i])),current_prices[i])
+
+
 
