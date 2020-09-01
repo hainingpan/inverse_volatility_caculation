@@ -1,3 +1,12 @@
+##Added feature: Combining taxable and non-taxable account.  When the contribution of non-taxable account is full this year, you may fund new money in taxable while rebalance in non-taxable account.
+
+needs pacakge  [`ortools`](https://developers.google.com/optimization)
+```
+python -m pip install --upgrade --user ortools
+```
+Focked from https://github.com/linzebing/inverse_volatility_caculation
+
+---
 # inverse_volatility_caculation
 This is to help people get forward signal of their inverse volatility allocation strategy. https://www.portfoliovisualizer.com/ used to provide this for free, but now it requires a subscription.
 
