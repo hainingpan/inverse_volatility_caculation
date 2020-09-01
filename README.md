@@ -1,4 +1,4 @@
-##Added feature: Combining taxable and non-taxable account.  When the contribution of non-taxable account is full this year, you may fund new money in taxable while rebalance in non-taxable account.
+## Added feature: Combining taxable and non-taxable account.  When the contribution of non-taxable account is full this year, you may fund new money in taxable while rebalance in non-taxable account.
 
 needs pacakge  [`ortools`](https://developers.google.com/optimization)
 ```
