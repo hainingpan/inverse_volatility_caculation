@@ -55,7 +55,7 @@ def get_cookie():
         if m is not None:
             crumb = m.groupdict()['crumb']        
     return cookie,crumb
-	
+    
 def get_data():
     #cookie,crumb=get_cookie()
     cookie='9mev4idf68vgk&b=3&s=g9'
@@ -87,21 +87,43 @@ def create_model(epsilon=0.01):
         [current_prices[0],current_prices[1],0,0],
         [0,0,current_prices[0],current_prices[1]],
         [1,0,0,0],
-        [0,1,0,0]
+        [0,1,0,0],
+        [1,1,1,1]
     ]
-    data['lb']=[-np.inf, 0,0,0,0,N_Tax_T,N_Tax_U]
-    data['ub']=[0, np.inf,S,S_Tax,S_IRA,np.inf,np.inf]
+    data['lb']=[-np.inf, 0,0,0,0,N_Tax_T,N_Tax_U,1]
+    data['ub']=[0, np.inf,S,S_Tax,S_IRA,np.inf,np.inf,np.inf]
     data['obj_coeffs']=[current_prices[0],current_prices[1],current_prices[0],current_prices[1]]
     data['xub']=[np.floor(S_Tax/current_prices[0]),np.floor(S_Tax/current_prices[1]),np.floor(S_IRA/current_prices[0]),np.floor(S_IRA/current_prices[1])]
     data['num_vars']=len(data['obj_coeffs'])
     data['num_constraints']=len(data['constraint_coeffs'])                                        
     return data     
 
+def findsol(epsilon=0.01):
+    data = create_model(epsilon)
+    solver = pywraplp.Solver.CreateSolver('simple_mip_program', 'CBC')
+    x={}
+    for j in range(data['num_vars']):
+        x[j] = solver.IntVar(0, data['xub'][j], 'x[%i]' % j)
+    for i in range(data['num_constraints']):
+        constraint = solver.RowConstraint(data['lb'][i], data['ub'][i], '')
+        for j in range(data['num_vars']):
+            constraint.SetCoefficient(x[j], data['constraint_coeffs'][i][j])
+    objective = solver.Objective()
+    for j in range(data['num_vars']):
+        objective.SetCoefficient(x[j], data['obj_coeffs'][j])
+    objective.SetMaximization()
+    status = solver.Solve()
+    if status==pywraplp.Solver.OPTIMAL:
+        sol=[x[i].solution_value() for i in range(4)]
+    else:
+        sol=[0,0,0,0]
+    return sol,status
+
 alpha,current_prices=get_data()
 
 N_Tax_T=float(input("Current shares of "+symbols[0]+" in taxable: "))
 N_Tax_U=float(input("Current shares of "+symbols[1]+" in taxable: "))
-Tax_C=float(input("Current cash: "))
+Tax_C=float(input("Current cash in taxable: "))
 N_IRA_T=float(input("Current shares of "+symbols[0]+" in IRA: "))
 N_IRA_U=float(input("Current shares of "+symbols[1]+" in IRA: "))
 IRA_C=float(input("Current cash in IRA: "))
@@ -114,45 +136,27 @@ S_Tax=Tax_T+Tax_U+Tax_C
 S_IRA=IRA_T+IRA_U+IRA_C
 S=S_Tax+S_IRA
 
-data = create_model()
-solver = pywraplp.Solver.CreateSolver('simple_mip_program', 'CBC')
-x={}
-for j in range(data['num_vars']):
-	x[j] = solver.IntVar(0, data['xub'][j], 'x[%i]' % j)
-for i in range(data['num_constraints']):
-	constraint = solver.RowConstraint(data['lb'][i], data['ub'][i], '')
-	for j in range(data['num_vars']):
-		constraint.SetCoefficient(x[j], data['constraint_coeffs'][i][j])
-objective = solver.Objective()
-for j in range(data['num_vars']):
-	objective.SetCoefficient(x[j], data['obj_coeffs'][j])
-objective.SetMaximization()
-status = solver.Solve()
-if status == pywraplp.Solver.OPTIMAL:
-#         print('Objective value =', solver.Objective().Value())
-#         for j in range(data['num_vars']):
-#             print(x[j].name(), ' = ', x[j].solution_value())
-	N_Tax_T2=x[0].solution_value()
-	N_Tax_U2=x[1].solution_value()
-	N_IRA_T2=x[2].solution_value()
-	N_IRA_U2=x[3].solution_value()
-	
-	print('-'*10+'result'+'-'*10)
-	Tax_C2=S_Tax-N_Tax_T2*current_prices[0]-N_Tax_U2*current_prices[1]
-	IRA_C2=S_IRA-N_IRA_T2*current_prices[0]-N_IRA_U2*current_prices[1]
-	S_T2=(N_Tax_T2+N_IRA_T2)*current_prices[0]
-	S_U2=(N_Tax_U2+N_IRA_U2)*current_prices[1]
 
-	print('Cash in Taxable %f' % Tax_C2)
-	print('Cash in IRA %f' % IRA_C2) 
-	print('Achievable balance of TMF/UPRO: ({:.2f}%/{:.2f}%), target ({:.2f}%/{:.2f}%)'.format(100*S_T2/(S_T2+S_U2),100*S_U2/(S_T2+S_U2),100*alpha[0],100*alpha[1]))
-#         print('Problem solved in %f milliseconds' % solver.wall_time())
-#         print('Problem solved in %d iterations' % solver.iterations())
-#         print('Problem solved in %d branch-and-bound nodes' % solver.nodes())
-	print('-'*10+'action'+'-'*10)
-	print(('buy'*(N_Tax_T2-N_Tax_T>=0)+'sell'*(N_Tax_T2-N_Tax_T<0))+' TMF in Taxable: '+str(int(abs(N_Tax_T2-N_Tax_T)))+' at price '+str(current_prices[0]))
-	print(('buy'*(N_Tax_U2-N_Tax_U>=0)+'sell'*(N_Tax_U2-N_Tax_U<0))+' UPRO in Taxable: '+str(int(abs(N_Tax_U2-N_Tax_U)))+' at price '+str(current_prices[1]))
-	print(('buy'*(N_IRA_T2-N_IRA_T>=0)+'sell'*(N_IRA_T2-N_IRA_T<0))+' TMF in IRA: '+str(int(abs(N_IRA_T2-N_IRA_T)))+' at price '+str(current_prices[0]))
-	print(('buy'*(N_IRA_U2-N_IRA_U>=0)+'sell'*(N_IRA_U2-N_IRA_U<0))+' UPRO in IRA: '+str(int(abs(N_IRA_U2-N_IRA_U)))+' at price '+str(current_prices[1]))
-else:
-	print('The problem does not have an optimal solution.')
+epsilon=0.01
+sol,status=findsol(epsilon)
+while status != pywraplp.Solver.OPTIMAL:
+    epsilon=epsilon+0.01
+    sol,status=findsol(epsilon)  
+    
+N_Tax_T2,N_Tax_U2,N_IRA_T2,N_IRA_U2=sol
+
+
+print('-'*10+'result'+'-'*10)
+Tax_C2=S_Tax-N_Tax_T2*current_prices[0]-N_Tax_U2*current_prices[1]
+IRA_C2=S_IRA-N_IRA_T2*current_prices[0]-N_IRA_U2*current_prices[1]
+S_T2=(N_Tax_T2+N_IRA_T2)*current_prices[0]
+S_U2=(N_Tax_U2+N_IRA_U2)*current_prices[1]
+
+print('Cash in Taxable %f' % Tax_C2)
+print('Cash in IRA %f' % IRA_C2) 
+print('Achievable balance of TMF/UPRO: ({:.2f}%/{:.2f}%), target ({:.2f}%/{:.2f}%)'.format(100*S_T2/(S_T2+S_U2),100*S_U2/(S_T2+S_U2),100*alpha[0],100*alpha[1]))       
+print('-'*10+'action'+'-'*10)
+print(('buy'*(N_Tax_T2-N_Tax_T>=0)+'sell'*(N_Tax_T2-N_Tax_T<0))+' TMF in Taxable: '+str(int(abs(N_Tax_T2-N_Tax_T)))+' at price '+str(current_prices[0]))
+print(('buy'*(N_Tax_U2-N_Tax_U>=0)+'sell'*(N_Tax_U2-N_Tax_U<0))+' UPRO in Taxable: '+str(int(abs(N_Tax_U2-N_Tax_U)))+' at price '+str(current_prices[1]))
+print(('buy'*(N_IRA_T2-N_IRA_T>=0)+'sell'*(N_IRA_T2-N_IRA_T<0))+' TMF in IRA: '+str(int(abs(N_IRA_T2-N_IRA_T)))+' at price '+str(current_prices[0]))
+print(('buy'*(N_IRA_U2-N_IRA_U>=0)+'sell'*(N_IRA_U2-N_IRA_U<0))+' UPRO in IRA: '+str(int(abs(N_IRA_U2-N_IRA_U)))+' at price '+str(current_prices[1]))
