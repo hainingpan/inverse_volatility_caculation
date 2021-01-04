@@ -37,7 +37,7 @@ def get_volatility_and_performance(symbol,cookie,crumb):
 
     for i in range(window_size):
         volatilities_in_window.append(math.log(prices[i] / prices[i+1]))
-        
+
     most_recent_date = datetime.strptime(lines[-1].split(',')[0], date_format).date()
     assert (date.today() - most_recent_date).days <= 4, "today is {}, most recent trading day is {}".format(date.today(), most_recent_date)
 
@@ -47,15 +47,15 @@ def get_volatility_and_performance(symbol,cookie,crumb):
 def get_cookie():
     url = 'https://finance.yahoo.com/quote/VOO/history?p=VOO'
     r = requests.get(url)
-    txt = r.text 
+    txt = r.text
     cookie = r.cookies['B']
     pattern = re.compile('.*"CrumbStore":\{"crumb":"(?P<crumb>[^"]+)"\}')
     for line in txt.splitlines():
         m = pattern.match(line)
         if m is not None:
-            crumb = m.groupdict()['crumb']        
+            crumb = m.groupdict()['crumb']
     return cookie,crumb
-    
+
 def get_data():
     #cookie,crumb=get_cookie()
     cookie='9mev4idf68vgk&b=3&s=g9'
@@ -95,12 +95,12 @@ def create_model(epsilon=0.01):
     data['obj_coeffs']=[current_prices[0],current_prices[1],current_prices[0],current_prices[1]]
     data['xub']=[np.floor(S_Tax/current_prices[0]),np.floor(S_Tax/current_prices[1]),np.floor(S_IRA/current_prices[0]),np.floor(S_IRA/current_prices[1])]
     data['num_vars']=len(data['obj_coeffs'])
-    data['num_constraints']=len(data['constraint_coeffs'])                                        
-    return data     
+    data['num_constraints']=len(data['constraint_coeffs'])
+    return data
 
 def findsol(epsilon=0.01):
     data = create_model(epsilon)
-    solver = pywraplp.Solver.CreateSolver('simple_mip_program', 'CBC')
+    solver = pywraplp.Solver.CreateSolver('CBC')
     x={}
     for j in range(data['num_vars']):
         x[j] = solver.IntVar(0, data['xub'][j], 'x[%i]' % j)
@@ -141,8 +141,8 @@ epsilon=0.01
 sol,status=findsol(epsilon)
 while status != pywraplp.Solver.OPTIMAL:
     epsilon=epsilon+0.01
-    sol,status=findsol(epsilon)  
-    
+    sol,status=findsol(epsilon)
+
 N_Tax_T2,N_Tax_U2,N_IRA_T2,N_IRA_U2=sol
 
 
@@ -153,8 +153,8 @@ S_T2=(N_Tax_T2+N_IRA_T2)*current_prices[0]
 S_U2=(N_Tax_U2+N_IRA_U2)*current_prices[1]
 
 print('Cash in Taxable %f' % Tax_C2)
-print('Cash in IRA %f' % IRA_C2) 
-print('Achievable balance of TMF/UPRO: ({:.2f}%/{:.2f}%), target ({:.2f}%/{:.2f}%)'.format(100*S_T2/(S_T2+S_U2),100*S_U2/(S_T2+S_U2),100*alpha[0],100*alpha[1]))       
+print('Cash in IRA %f' % IRA_C2)
+print('Achievable balance of TMF/UPRO: ({:.2f}%/{:.2f}%), target ({:.2f}%/{:.2f}%)'.format(100*S_T2/(S_T2+S_U2),100*S_U2/(S_T2+S_U2),100*alpha[0],100*alpha[1]))
 print('-'*10+'action'+'-'*10)
 print(('buy'*(N_Tax_T2-N_Tax_T>=0)+'sell'*(N_Tax_T2-N_Tax_T<0))+' TMF in Taxable: '+str(int(abs(N_Tax_T2-N_Tax_T)))+' at price '+str(current_prices[0]))
 print(('buy'*(N_Tax_U2-N_Tax_U>=0)+'sell'*(N_Tax_U2-N_Tax_U<0))+' UPRO in Taxable: '+str(int(abs(N_Tax_U2-N_Tax_U)))+' at price '+str(current_prices[1]))
